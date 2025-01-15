@@ -3305,16 +3305,12 @@ bool ImGui::BandFilterSlider(const char* label, float* v, float v_min, float v_m
     ImVec2 old_cur = window->DC.CursorPos;
     
 
-    float s_max_timeline_value = v_max;
-    float TIMELINE_RADIUS = 10.0f;
-
 	ImGuiWindow* win = ImGui::GetCurrentWindow();
 	const ImU32 inactive_color = ImGui::ColorConvertFloat4ToU32(GImGui->Style.Colors[ImGuiCol_Button]);
 	const ImU32 active_color = ImGui::ColorConvertFloat4ToU32(GImGui->Style.Colors[ImGuiCol_ButtonHovered]);
 	const ImU32 line_color = ImGui::ColorConvertFloat4ToU32(GImGui->Style.Colors[ImGuiCol_SliderGrabActive]);
 	bool changed = false;
 	
-    int changed_i = -1;
 	for (int i = 0; i < 4; ++i)
 	{
         float prog = v[i] / (v_max - v_min);
@@ -3337,9 +3333,8 @@ bool ImGui::BandFilterSlider(const char* label, float* v, float v_min, float v_m
 		ImGui::InvisibleButton("", ImVec2(grab_bb_width, grab_bb_height));
 		if (ImGui::IsItemActive() && ImGui::IsMouseDragging(0))
 		{
-			v[i] += ImGui::GetIO().MouseDelta.x / (frame_width - 2.0f * grab_bb_width) * s_max_timeline_value;
+			v[i] += ImGui::GetIO().MouseDelta.x / (frame_width - 2.0f * grab_bb_width) * (v_max - v_min);
 			changed = true;
-            changed_i = i;
 		}
 		ImGui::PopID();
         win->DrawList->AddRectFilled(padded_grab_bb.Min, padded_grab_bb.Max, ImGui::IsItemActive() || ImGui::IsItemHovered() ? active_color : inactive_color, style.GrabRounding);
@@ -3364,8 +3359,8 @@ bool ImGui::BandFilterSlider(const char* label, float* v, float v_min, float v_m
         v[2] = v[3];
         v[3] = tmp;
     }
-    if (v[3] > s_max_timeline_value) v[3] = v_max;
-    if (v[0] < 0) v[0] = 0;
+    if (v[3] > v_max) v[3] = v_max;
+    if (v[0] < v_min) v[0] = v_min;
 	return changed;
 }
 
