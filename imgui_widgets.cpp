@@ -3247,6 +3247,94 @@ bool ImGui::SliderScalar(const char* label, ImGuiDataType data_type, void* p_dat
     return value_changed;
 }
 
+bool ImGui::BandFilterSlider(const char* label, float* v, float v_min, float v_max)
+{
+    ImGuiWindow* window = GetCurrentWindow();
+    if (window->SkipItems)
+        return false;
+
+    ImGuiContext& g = *GImGui;
+    const ImGuiStyle& style = g.Style;
+    const ImGuiID id = window->GetID(label);
+    const float w = CalcItemWidth();
+
+    const ImVec2 label_size = CalcTextSize(label, NULL, true);
+    const ImRect frame_bb(window->DC.CursorPos, window->DC.CursorPos + ImVec2(w, label_size.y + style.FramePadding.y * 2.0f));
+    const ImRect total_bb(frame_bb.Min, frame_bb.Max + ImVec2(label_size.x > 0.0f ? style.ItemInnerSpacing.x + label_size.x : 0.0f, 0.0f));
+
+	ImVec2 cursor_pos = window->DC.CursorPos;
+    ItemSize(total_bb, style.FramePadding.y);
+    if (!ItemAdd(total_bb, id, &frame_bb, ImGuiItemFlags_NoNav | ImGuiItemFlags_NoNavDefaultFocus))
+        return false;
+
+    RenderFrame(frame_bb.Min, frame_bb.Max, GetColorU32(ImGuiCol_FrameBg), true, style.FrameRounding);
+    ImVec2 old_cur = window->DC.CursorPos;
+    
+
+    float s_max_timeline_value = v_max;
+    float TIMELINE_RADIUS = 10.0f;
+
+	ImGuiWindow* win = ImGui::GetCurrentWindow();
+	const ImU32 inactive_color = ImGui::ColorConvertFloat4ToU32(GImGui->Style.Colors[ImGuiCol_Button]);
+	const ImU32 active_color = ImGui::ColorConvertFloat4ToU32(GImGui->Style.Colors[ImGuiCol_ButtonHovered]);
+	const ImU32 line_color = ImGui::ColorConvertFloat4ToU32(GImGui->Style.Colors[ImGuiCol_SliderGrabActive]);
+	bool changed = false;
+	
+    int changed_i = -1;
+	for (int i = 0; i < 4; ++i)
+	{
+        float prog = v[i] / (v_max - v_min);
+
+        float grab_bb_height = frame_bb.GetHeight();
+        float grab_bb_width = grab_bb_height * 0.85f;
+        float frame_width = frame_bb.GetWidth();
+
+        ImVec2 pos = cursor_pos + ImVec2(0.5f * grab_bb_width, 0.5f * grab_bb_height);
+        pos.x += ((frame_width - 2.0f * grab_bb_width) + grab_bb_width) * prog;
+
+        ImVec2 half_size_grab = ImVec2(0.5f * grab_bb_width, 0.5f * grab_bb_height);
+        ImRect grab_bb = ImRect(pos - half_size_grab, pos + half_size_grab);
+
+        float padding = 2.0f;
+        ImRect padded_grab_bb = ImRect(grab_bb.Min + ImVec2(padding, padding), grab_bb.Max - ImVec2(padding, padding));
+
+		ImGui::SetCursorScreenPos(pos - half_size_grab);
+		ImGui::PushID(i);
+		ImGui::InvisibleButton("", ImVec2(grab_bb_width, grab_bb_height));
+		if (ImGui::IsItemActive() && ImGui::IsMouseDragging(0))
+		{
+			v[i] += ImGui::GetIO().MouseDelta.x / (frame_width - 2.0f * grab_bb_width) * s_max_timeline_value;
+			changed = true;
+            changed_i = i;
+		}
+		ImGui::PopID();
+        win->DrawList->AddRectFilled(padded_grab_bb.Min, padded_grab_bb.Max, ImGui::IsItemActive() || ImGui::IsItemHovered() ? active_color : inactive_color, style.GrabRounding);
+	}
+	
+
+	if (v[0] > v[1])
+	{
+		float tmp = v[0];
+		v[0] = v[1];
+		v[1] = tmp;
+	}
+    if (v[1] > v[2])
+    {
+        float tmp = v[1];
+        v[1] = v[2];
+        v[2] = tmp;
+    }
+    if (v[2] > v[3])
+    {
+        float tmp = v[2];
+        v[2] = v[3];
+        v[3] = tmp;
+    }
+    if (v[3] > s_max_timeline_value) v[3] = v_max;
+    if (v[0] < 0) v[0] = 0;
+	return changed;
+}
+
 // Add multiple sliders on 1 line for compact edition of multiple components
 bool ImGui::SliderScalarN(const char* label, ImGuiDataType data_type, void* v, int components, const void* v_min, const void* v_max, const char* format, ImGuiSliderFlags flags)
 {
